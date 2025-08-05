@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:applaporwarga/views/user/widgets/report_card.dart'; // Import widget yang baru dibuat
+import 'package:applaporwarga/views/laporan/laporan_list_page.dart';
 
 class HomeUserPage extends StatelessWidget {
   const HomeUserPage({super.key});
@@ -142,7 +143,20 @@ class HomeUserPage extends StatelessWidget {
               icon: Icon(Icons.account_circle), label: 'Account'),
         ],
         onTap: (index) {
-          // TODO: Implementasi navigasi bottom bar
+          if (index == 0) {
+            // Home
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeUserPage()),
+            );
+          } else if (index == 1) {
+            // History
+            Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LaporanListPage()),
+          );
+        }
+      // Tambahan nanti bisa untuk index 2, 3, 4
         },
       ),
     );
