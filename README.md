@@ -3,6 +3,8 @@
 Project ini dikembangkan menggunakan pendekatan **MVC (Model - View - Controller)** agar struktur kode lebih terorganisir, mudah dibaca, dan mudah dikembangkan secara kolaboratif.
 
 ## Struktur Folder
+
+```plaintext
 lib/
 ├── controllers/          # Logika dan state management (Controller)
 │   ├── laporan_controller.dart
@@ -31,6 +33,7 @@ lib/
 │       └── custom_button.dart
 │
 └── main.dart
+
 
 
 ## Penjelasan Pendekatan
