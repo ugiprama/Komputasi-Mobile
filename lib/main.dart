@@ -1,7 +1,6 @@
-import 'package:applaporwarga/views/user/home_user_page.dart';
-import 'package:flutter/material.dart';
+// Import yang tidak dipakai sudah dihapus agar bersih
 import 'package:applaporwarga/views/auth/login_page.dart';
-import 'package:applaporwarga/views/laporan/imp_laporan.dart';
+import 'package:flutter/material.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,11 +13,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Lapor Warga',
+      // Menghilangkan banner "DEBUG" di pojok kanan atas
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        // Menggunakan skema warna baru yang lebih modern
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
-      // Halaman login akan menjadi halaman utama
-      home: const HomeUserPage(),
+      // Halaman utama aplikasi sekarang adalah LoginPage
+      home: const LoginPage(),
     );
   }
 }
