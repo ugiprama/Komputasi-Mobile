@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 class HomeHeader extends StatelessWidget implements PreferredSizeWidget {
   // const HomeHeader({super.key}); // Uncomment jika Flutter versi baru
-  const HomeHeader({Key? key})
-      : super(key: key); // Gunakan ini untuk kompatibilitas
+  const HomeHeader({super.key}); // Gunakan ini untuk kompatibilitas
 
   @override
   Widget build(BuildContext context) {

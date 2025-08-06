@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:applaporwarga/views/user/home_user_page.dart';
 import '../../widgets/bottom_nav.dart';
 
 class LaporanListPage extends StatelessWidget {
@@ -12,7 +11,7 @@ class LaporanListPage extends StatelessWidget {
       "lokasi": "-7.753695, 110.347617",
       "status": "Proses",
       "foto":
-          "https://asset.kompas.com/crops/y8FGM48gZTY-DN3TK0dnpGiNiyI=/0x0:780x520/750x500/data/photo/2023/10/12/6527c02105cf8.jpg"
+          "https://picsum.photos/seed/10/400/200"
     },
     {
       "judul": "Jalan Berlubang",
@@ -20,7 +19,7 @@ class LaporanListPage extends StatelessWidget {
       "lokasi": "-7.753695, 110.347617",
       "status": "Selesai",
       "foto":
-          "https://cdn0-production-images-kly.akamaized.net/ukszDkR3i1nUIYzmdVZ-bBpD9Cg=/640x360/smart/filters:quality(75):strip_icc():format(webp)/kly-media-production/medias/3133217/original/044507400_1594712276-WhatsApp_Image_2020-07-14_at_16.57.07.jpeg"
+          "https://picsum.photos/seed/11/400/200"
     },
   ];
 
