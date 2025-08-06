@@ -1,5 +1,7 @@
+import 'package:applaporwarga/views/user/home_user_page.dart';
 import 'package:flutter/material.dart';
 import 'package:applaporwarga/views/auth/login_page.dart';
+import 'package:applaporwarga/views/laporan/imp_laporan.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +18,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       // Halaman login akan menjadi halaman utama
-      home: const LoginPage(),
+      home: const HomeUserPage(),
     );
   }
 }

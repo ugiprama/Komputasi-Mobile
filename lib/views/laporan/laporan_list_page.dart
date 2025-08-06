@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:applaporwarga/views/user/home_user_page.dart'; // Import untuk navigasi ke Home
+import 'package:applaporwarga/views/user/home_user_page.dart';
+import '../../widgets/bottom_nav.dart';
 
 class LaporanListPage extends StatelessWidget {
   const LaporanListPage({super.key});
@@ -109,31 +110,7 @@ class LaporanListPage extends StatelessWidget {
           );
         },
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 1, // Karena ini halaman History
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Report'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifikasi'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Account'),
-        ],
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeUserPage()),
-            );
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LaporanListPage()),
-            );
-          }
-          // Index 2, 3, 4 akan ditambahkan nanti
-        },
-      ),
+      bottomNavigationBar: const UserBottomNavBar(currentIndex: 1),
     );
   }
 }
