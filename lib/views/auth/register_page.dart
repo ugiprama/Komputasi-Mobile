@@ -46,25 +46,20 @@ class _RegisterPageState extends State<RegisterPage> {
       final id = res.user?.id;
 
       if (id != null) {
-        final insertResponse = await supabase.from('profiles').insert({
+        await supabase.from('profiles').insert({
           'id': id,
           'name': name,
         });
-
-        if (insertResponse.error != null) {
-          throw insertResponse.error!;
-        }
-
-        _showSuccessDialog("Berhasil mendaftar. Silakan login.");
       }
-    } on AuthException catch (e) {
-      _showMessage("Gagal daftar: ${e.message}");
+
+      _showSuccessDialog("Berhasil mendaftar. Silakan verifikasi email anda.");
     } on PostgrestException catch (e) {
       _showMessage("Gagal simpan profil: ${e.message}");
     } catch (e) {
       _showMessage("Terjadi kesalahan: $e");
     }
   }
+
 
 
   void _showMessage(String message) {

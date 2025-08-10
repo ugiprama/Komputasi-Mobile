@@ -1,8 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class HomeHeader extends StatelessWidget implements PreferredSizeWidget {
-  // const HomeHeader({super.key}); // Uncomment jika Flutter versi baru
-  const HomeHeader({super.key}); // Gunakan ini untuk kompatibilitas
+final supabase = Supabase.instance.client;
+
+class HomeHeader extends StatefulWidget implements PreferredSizeWidget {
+  const HomeHeader({super.key});
+
+  @override
+  State<HomeHeader> createState() => _HomeHeaderState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(120);
+}
+
+class _HomeHeaderState extends State<HomeHeader> {
+  String? fullName;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFullName();
+  }
+
+  Future<void> _fetchFullName() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      setState(() {
+        fullName = "User";
+        isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final response = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      setState(() {
+        fullName = response?['name'] ?? "User";
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        fullName = "User";
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,26 +67,28 @@ class HomeHeader extends StatelessWidget implements PreferredSizeWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.grey,
                     ),
-                    SizedBox(width: 12.0),
+                    const SizedBox(width: 12.0),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hello User',
-                          style: TextStyle(
+                          isLoading
+                              ? 'Hello...'
+                              : 'Hello ${fullName ?? "User"}',
+                          style: const TextStyle(
                             fontSize: 18.0,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
                           ),
                         ),
-                        Text(
-                          'Ada Kejadian apa hari ini?',
+                        const Text(
+                          'Ada kejadian apa hari ini?',
                           style: TextStyle(
                             fontSize: 14.0,
                             color: Colors.black54,
@@ -51,8 +101,7 @@ class HomeHeader extends StatelessWidget implements PreferredSizeWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon:
-                          const Icon(Icons.notifications, color: Colors.black),
+                      icon: const Icon(Icons.notifications, color: Colors.black),
                       onPressed: () {/* TODO: Navigasi notifikasi */},
                     ),
                     IconButton(
@@ -68,7 +117,4 @@ class HomeHeader extends StatelessWidget implements PreferredSizeWidget {
       ),
     );
   }
-
-  @override
-  Size get preferredSize => const Size.fromHeight(120);
 }

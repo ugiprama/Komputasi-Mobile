@@ -6,6 +6,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../widgets/bottom_nav.dart';
 import 'imp_laporan.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class LaporanPage extends StatefulWidget {
   const LaporanPage({super.key});
@@ -26,6 +28,7 @@ class _LaporanPageState extends State<LaporanPage> {
   GoogleMapController? _mapController;
   bool _gunakanLokasiSekarang = true;
   int _miniMapId = 0;
+  int _uploadFotoKey = 0;
 
 
   final List<String> _kategoriMasalah = [
@@ -71,6 +74,43 @@ class _LaporanPageState extends State<LaporanPage> {
         });
       }
     }
+  }
+
+  void _setGunakanLokasiSekarang(bool val) {
+    setState(() {
+      _gunakanLokasiSekarang = val;
+      if (!_gunakanLokasiSekarang) {
+        _lokasi = null; // reset koordinat kalau pilih manual alamat
+      } else {
+        _getLokasiSekarang(); // kalau balik ke otomatis, ambil lokasi sekarang lagi
+      }
+    });
+  }
+
+  void _resetForm() {
+    _judulController.clear();
+    _deskripsiController.clear();
+    _alamatManualController.clear();
+    setState(() {
+      _selectedKategori = null;
+      _selectedDate = null;
+      _selectedTime = null;
+      _buktiFoto = [];
+      _gunakanLokasiSekarang = true;
+      _miniMapId++;
+      _uploadFotoKey++;
+    });
+    _getLokasiSekarang(); // reset lokasi ke lokasi user sekarang
+  }
+
+  void _showToast(String message, {bool error = false}) {
+    Fluttertoast.showToast(
+      msg: message,
+      backgroundColor: error ? Colors.red : Colors.green,
+      textColor: Colors.white,
+      gravity: ToastGravity.BOTTOM,
+      toastLength: Toast.LENGTH_LONG,
+    );
   }
 
   void _bukaPetaModal() {
@@ -169,42 +209,94 @@ class _LaporanPageState extends State<LaporanPage> {
     );
   }
 
-  void _kirimLaporan() {
+  void _kirimLaporan() async {
     final judul = _judulController.text.trim();
     final deskripsi = _deskripsiController.text.trim();
     final alamatManual = _alamatManualController.text.trim();
 
-    if (judul.isEmpty ||
-        _selectedKategori == null ||
-        deskripsi.isEmpty ||
-        (_gunakanLokasiSekarang && _lokasi == null) ||
-        (!_gunakanLokasiSekarang && alamatManual.isEmpty) ||
-        _buktiFoto.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Mohon lengkapi semua data sebelum mengirim laporan.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    // Validasi
+    if (judul.isEmpty) {
+      _showToast('Judul laporan tidak boleh kosong', error: true);
+      return;
+    }
+    if (_selectedKategori == null) {
+      _showToast('Kategori masalah harus dipilih', error: true);
+      return;
+    }
+    if (deskripsi.isEmpty) {
+      _showToast('Deskripsi masalah tidak boleh kosong', error: true);
+      return;
+    }
+    if (_gunakanLokasiSekarang && _lokasi == null) {
+      _showToast('Lokasi otomatis belum terdeteksi, coba lagi', error: true);
+      return;
+    }
+    if (!_gunakanLokasiSekarang && alamatManual.isEmpty) {
+      _showToast('Alamat lokasi kejadian harus diisi secara manual', error: true);
+      return;
+    }
+    if (_selectedDate == null || _selectedTime == null) {
+    _showToast('Tanggal dan waktu kejadian harus diisi', error: true);
+    return;
+    }
+    if (_buktiFoto.isEmpty) {
+      _showToast('Foto bukti harus diupload minimal satu', error: true);
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Laporan berhasil dikirim!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    try {
+      // Upload foto ke Supabase Storage
+      List<String> fotoUrls = [];
+      for (var foto in _buktiFoto) {
+        final fileBytes = await foto.readAsBytes();
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}_${foto.name}';
 
-    _judulController.clear();
-    _deskripsiController.clear();
-    _alamatManualController.clear();
-    setState(() {
-      _selectedKategori = null;
-      _selectedDate = null;
-      _selectedTime = null;
-      _buktiFoto = [];
-    });
+        await Supabase.instance.client.storage
+            .from('laporanfoto')
+            .uploadBinary(fileName, fileBytes);
+
+        final publicUrl = Supabase.instance.client.storage
+            .from('laporanfoto')
+            .getPublicUrl(fileName);
+
+        fotoUrls.add(publicUrl);
+      }
+
+      // Insert ke tabel laporan
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        _showToast('User belum login', error: true);
+        return;
+      }
+
+      final insertResponse = await Supabase.instance.client
+          .from('laporan')
+          .insert({
+            'user_id': userId,
+            'judul': judul,
+            'kategori': _selectedKategori,
+            'deskripsi': deskripsi,
+            'koordinat_lat': _lokasi?.latitude,
+            'koordinat_lng': _lokasi?.longitude,
+            'alamat_manual': alamatManual.isEmpty ? null : alamatManual,
+            'waktu_kejadian': _selectedDate != null
+                ? DateTime(
+                    _selectedDate!.year,
+                    _selectedDate!.month,
+                    _selectedDate!.day,
+                    _selectedTime?.hour ?? 0,
+                    _selectedTime?.minute ?? 0,
+                  ).toIso8601String()
+                : null,
+            'foto_urls': fotoUrls,
+          })
+          .select();
+
+      _showToast('Laporan berhasil dikirim!');
+      _resetForm();
+    } catch (e) {
+      _showToast('Gagal mengirim laporan: $e', error: true);
+    }
   }
 
   @override
@@ -326,13 +418,17 @@ class _LaporanPageState extends State<LaporanPage> {
                   Radio<bool>(
                     value: true,
                     groupValue: _gunakanLokasiSekarang,
-                    onChanged: (val) => setState(() => _gunakanLokasiSekarang = val!),
+                    onChanged: (val){ 
+                      if (val != null) _setGunakanLokasiSekarang(val);
+                    },
                   ),
                   const Text('Gunakan Lokasi Sekarang'),
                   Radio<bool>(
                     value: false,
                     groupValue: _gunakanLokasiSekarang,
-                    onChanged: (val) => setState(() => _gunakanLokasiSekarang = val!),
+                    onChanged: (val){ 
+                      if (val != null) _setGunakanLokasiSekarang(val);
+                    },
                   ),
                   const Text('Isi Manual'),
                 ],
@@ -438,6 +534,7 @@ class _LaporanPageState extends State<LaporanPage> {
               const Text('Foto Bukti'),
               const SizedBox(height: 8),
               UploadFotoMultiWidget(
+                key: ValueKey(_uploadFotoKey),
                 fotoSebelumnya: _buktiFoto,
                 onFotoDiubah: (fotoList) {
                   setState(() {
