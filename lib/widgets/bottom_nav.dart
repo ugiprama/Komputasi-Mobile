@@ -1,8 +1,7 @@
-// BOTTOM NAV NYA DI JADIKAN SATU FILE
-
 import 'package:flutter/material.dart';
 import 'package:applaporwarga/views/user/home_user_page.dart';
 import 'package:applaporwarga/views/laporan/imp_laporan.dart';
+import 'package:applaporwarga/views/user/account_page.dart'; 
 
 class UserBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -18,10 +17,8 @@ class UserBottomNavBar extends StatelessWidget {
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
         BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Report'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.notifications), label: 'Notifikasi'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle), label: 'Account'),
+        BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifikasi'),
+        BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Account'),
       ],
       onTap: (index) {
         if (index == currentIndex) return;
@@ -43,6 +40,12 @@ class UserBottomNavBar extends StatelessWidget {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const LaporanPage()),
+            );
+            break;
+          case 4:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const AccountPage()),
             );
             break;
         }

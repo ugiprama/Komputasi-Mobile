@@ -7,10 +7,10 @@ class UploadFotoMultiWidget extends StatefulWidget {
   final Function(List<XFile>) onFotoDiubah;
 
   const UploadFotoMultiWidget({
-    Key? key,
+    super.key,
     required this.fotoSebelumnya,
     required this.onFotoDiubah,
-  }) : super(key: key);
+  });
 
   @override
   State<UploadFotoMultiWidget> createState() => _UploadFotoMultiWidgetState();

@@ -3,7 +3,7 @@ import 'package:applaporwarga/views/user/widgets/report_card.dart'; // Sesuaikan
 
 class LatestReportsSection extends StatelessWidget {
   // const LatestReportsSection({super.key}); // Uncomment jika Flutter versi baru
-  const LatestReportsSection({Key? key}) : super(key: key); // Gunakan ini
+  const LatestReportsSection({super.key}); // Gunakan ini
 
   @override
   Widget build(BuildContext context) {

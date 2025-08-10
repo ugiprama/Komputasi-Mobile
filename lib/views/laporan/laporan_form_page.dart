@@ -8,7 +8,7 @@ import '../../widgets/bottom_nav.dart';
 import 'imp_laporan.dart';
 
 class LaporanPage extends StatefulWidget {
-  const LaporanPage({Key? key}) : super(key: key);
+  const LaporanPage({super.key});
 
   @override
   State<LaporanPage> createState() => _LaporanPageState();
@@ -74,8 +74,8 @@ class _LaporanPageState extends State<LaporanPage> {
   }
 
   void _bukaPetaModal() {
-    LatLng _lokasiSementara = _lokasi!;
-    GoogleMapController? _modalMapController;
+    LatLng lokasiSementara = _lokasi!;
+    GoogleMapController? modalMapController;
 
     showDialog(
       context: context,
@@ -101,14 +101,14 @@ class _LaporanPageState extends State<LaporanPage> {
                       children: [
                         GoogleMap(
                           initialCameraPosition: CameraPosition(
-                            target: _lokasiSementara,
+                            target: lokasiSementara,
                             zoom: 15,
                           ),
                           onMapCreated: (controller) {
-                            _modalMapController = controller;
+                            modalMapController = controller;
                           },
                           onCameraMove: (position) {
-                            _lokasiSementara = position.target;
+                            lokasiSementara = position.target;
                           },
                           zoomControlsEnabled: false,
                           myLocationEnabled: true,
@@ -135,10 +135,10 @@ class _LaporanPageState extends State<LaporanPage> {
                             final newPosition = LatLng(position.latitude, position.longitude);
 
                             setModalState(() {
-                              _lokasiSementara = newPosition;
+                              lokasiSementara = newPosition;
                             });
-                            if (_modalMapController != null) {
-                              _modalMapController!.animateCamera(
+                            if (modalMapController != null) {
+                              modalMapController!.animateCamera(
                                 CameraUpdate.newLatLng(newPosition),
                               );
                             }
@@ -149,7 +149,7 @@ class _LaporanPageState extends State<LaporanPage> {
                         ElevatedButton.icon(
                           onPressed: () {
                             setState(() {
-                              _lokasi = _lokasiSementara;
+                              _lokasi = lokasiSementara;
                               _miniMapId++;
                             });
                             Navigator.pop(context);
