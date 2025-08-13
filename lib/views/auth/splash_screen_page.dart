@@ -1,129 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:applaporwarga/views/auth/splash_screen_page.dart';
+import 'dart:async';
+// Import halaman yang akan dituju setelah splash screen
 import 'package:applaporwarga/views/auth/login_page.dart';
-import 'package:applaporwarga/views/user/account_page.dart';
-import 'package:applaporwarga/services/exp_services.dart';
-import 'package:applaporwarga/views/user/home_user_page.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    // Inisialisasi Supabase menggunakan service yang sudah ada
-    final supabaseService = SupabaseService();
-    await supabaseService.init();
-    
-    print('Supabase initialized successfully');
-  } catch (error) {
-    print('Error initializing Supabase: $error');
-  }
-  
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Lapor Warga',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-        // Tambahan theme untuk konsistensi UI
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-        ),
-        cardTheme: const CardThemeData(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-      ),
-      
-      // Mulai dengan splash screen
-      home: const SplashScreenPage(),
-      
-      // Routes untuk navigasi
-      routes: {
-        '/splash-screen': (context) => const SplashScreenPage(),
-        '/auth-check': (context) => const AuthWrapper(),
-        '/login': (context) => const LoginPage(),
-        '/account': (context) => const AccountPage(),
-      },
-      
-      // Handle route yang tidak ditemukan
-      onUnknownRoute: (settings) {
-        return MaterialPageRoute(
-          builder: (context) => const SplashScreenPage(),
-        );
-      },
-    );
-  }
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-// Widget untuk menentukan halaman awal berdasarkan status autentikasi
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        // Loading state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Memuat aplikasi...'),
-                ],
-              ),
-            ),
-          );
-        }
-
-        // Check if user is logged in
-        final session = Supabase.instance.client.auth.currentSession;
-        
-        if (session != null) {
-          // User sudah login, arahkan ke halaman HomeUserPage
-          return const HomeUserPage();
-        } else {
-          // User belum login, arahkan ke halaman login
-          return const LoginPage();
-        }
-      },
-    );
-  }
-}
-
-// Splash Screen Page yang akan menangani navigasi awal
-class SplashScreenPage extends StatefulWidget {
-  const SplashScreenPage({Key? key}) : super(key: key);
-
-  @override
-  State<SplashScreenPage> createState() => _SplashScreenPageState();
-}
-
-class _SplashScreenPageState extends State<SplashScreenPage>
+class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -158,8 +45,10 @@ class _SplashScreenPageState extends State<SplashScreenPage>
     // Mulai animasi
     _animationController.forward();
     
-    // Timer untuk cek auth status dan navigasi
-    _checkAuthAndNavigate();
+    // Timer untuk pindah ke halaman berikutnya
+    Timer(const Duration(seconds: 3), () {
+      _navigateToNextPage();
+    });
   }
 
   @override
@@ -168,23 +57,17 @@ class _SplashScreenPageState extends State<SplashScreenPage>
     super.dispose();
   }
 
-  void _checkAuthAndNavigate() async {
-    // Tunggu splash screen selesai (3 detik)
-    await Future.delayed(const Duration(seconds: 3));
-    
-    if (mounted) {
-      // Navigasi ke AuthWrapper untuk cek status login
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
-          transitionDuration: const Duration(milliseconds: 800),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    }
+  void _navigateToNextPage() {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
+        transitionDuration: const Duration(milliseconds: 800),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   @override
@@ -377,6 +260,3 @@ class _SplashScreenPageState extends State<SplashScreenPage>
     );
   }
 }
-
-// Helper untuk mengakses Supabase client dengan mudah
-final supabase = Supabase.instance.client;
