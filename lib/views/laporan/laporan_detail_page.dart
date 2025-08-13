@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:applaporwarga/views/laporan/laporan_edit_page.dart';
+import 'package:geocoding/geocoding.dart' as geocoding;
+import 'laporan_photo_viewer_page.dart';
 
 class LaporanDetailPage extends StatefulWidget {
   final String laporanId;
@@ -19,6 +21,9 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   String namaPelapor = '-';
   bool loading = true;
   bool dataUpdated = false;
+  bool isOwner = false;
+  String? resolvedAddress;
+  bool addressLoading = false;
 
   @override
   void initState() {
@@ -37,19 +42,64 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
 
       laporan = data;
 
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId != null && data['user_id'] == currentUserId) {
+        isOwner = true;
+      } else {
+        isOwner = false;
+      }
+
       if (data['user_id'] != null) {
         final profile = await supabase
             .from('profiles')
             .select('name')
             .eq('id', data['user_id'])
             .maybeSingle();
-
         namaPelapor = profile?['name'] ?? '-';
+      }
+
+      final lat = (data['koordinat_lat'] as num?)?.toDouble();
+      final lng = (data['koordinat_lng'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        _reverseGeocode(lat, lng);
       }
     } catch (e) {
       debugPrint("Error: $e");
     }
     setState(() => loading = false);
+  }
+
+  Future<void> _reverseGeocode(double lat, double lng) async {
+    setState(() => addressLoading = true);
+    try {
+      final placemarks = await geocoding.placemarkFromCoordinates(lat, lng);
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        final parts = [
+          p.street,
+          p.subLocality,
+          p.locality,
+          p.subAdministrativeArea,
+          p.administrativeArea,
+          p.postalCode
+        ]
+            .whereType<String>()
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        if (mounted) {
+          setState(() {
+            resolvedAddress = parts.join(', ');
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Reverse geocoding error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => addressLoading = false);
+      }
+    }
   }
 
   String formatDateTime(String? iso) {
@@ -77,8 +127,9 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
     }
 
     final fotoUrls = List<String>.from(laporan?['foto_urls'] ?? []);
-    final lat = laporan?['koordinat_lat'] as double?;
-    final lng = laporan?['koordinat_lng'] as double?;
+    // Gunakan casting num? agar aman jika Supabase mengembalikan int
+    final lat = (laporan?['koordinat_lat'] as num?)?.toDouble();
+    final lng = (laporan?['koordinat_lng'] as num?)?.toDouble();
 
     return Scaffold(
       appBar: AppBar(
@@ -97,7 +148,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
             const SizedBox(height: 16),
             if (lat != null && lng != null) _buildMapPreview(lat, lng),
             const SizedBox(height: 24),
-            _buildActionButtons(),
+            if (isOwner) _buildActionButtons(),
           ],
         ),
       ),
@@ -119,7 +170,8 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
           avatar: const Icon(Icons.info, color: Colors.white, size: 18),
           label: Text(
             status,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold),
           ),
           backgroundColor: _statusColor(status),
         ),
@@ -128,30 +180,51 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   }
 
   Widget _buildImageCarousel(List<String> urls) {
-    return CarouselSlider(
+    return CarouselSlider.builder(
       options: CarouselOptions(
         height: 200,
         enlargeCenterPage: true,
         enableInfiniteScroll: false,
       ),
-      items: urls.map((url) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            url,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            errorBuilder: (_, __, ___) => Container(
-              color: Colors.grey[300],
-              child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+      itemCount: urls.length,
+      itemBuilder: (context, index, realIdx) {
+        final url = urls[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LaporanPhotoViewerPage(
+                  fotoUrls: urls,
+                  initialIndex: index,
+                ),
+              ),
+            );
+          },
+          child: Hero(
+            tag: 'laporan_foto_${index}$url',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                url,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.broken_image,
+                      size: 50, color: Colors.grey),
+                ),
+              ),
             ),
           ),
         );
-      }).toList(),
+      },
     );
   }
 
   Widget _buildInfoCard() {
+    final lat = (laporan?['koordinat_lat'] as num?)?.toDouble();
+    final lng = (laporan?['koordinat_lng'] as num?)?.toDouble();
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 4,
@@ -161,11 +234,30 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
           children: [
             _infoTile(Icons.person, "Pelapor", namaPelapor),
             _infoTile(Icons.category, "Kategori", laporan?['kategori'] ?? '-'),
-            _infoTile(Icons.description, "Deskripsi", laporan?['deskripsi'] ?? '-'),
-            _infoTile(Icons.location_on, "Lokasi", 
-              laporan?['alamat_manual'] ?? '-'),
+            _infoTile(
+                Icons.description, "Deskripsi", laporan?['deskripsi'] ?? '-'),
+            _infoTile(
+              Icons.location_on,
+              "Lokasi",
+              () {
+                if (addressLoading) return 'Mencari alamat...';
+                final manual = (laporan?['alamat_manual'] as String?)?.trim();
+                if (manual != null && manual.isNotEmpty) return manual;
+                if (resolvedAddress != null &&
+                    resolvedAddress!.trim().isNotEmpty) {
+                  return resolvedAddress!;
+                }
+                return 'Alamat tidak tersedia';
+              }(),
+            ),
+            _infoTile(
+                Icons.map,
+                "Koordinat",
+                (lat != null && lng != null)
+                    ? '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'
+                    : '-'),
             _infoTile(Icons.calendar_today, "Tanggal & Waktu",
-              formatDateTime(laporan?['waktu_kejadian'])),
+                formatDateTime(laporan?['waktu_kejadian'])),
           ],
         ),
       ),
@@ -183,7 +275,9 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
             zoom: 15,
           ),
           markers: {
-            Marker(markerId: const MarkerId('laporan'), position: LatLng(lat, lng)),
+            Marker(
+                markerId: const MarkerId('laporan'),
+                position: LatLng(lat, lng)),
           },
           zoomControlsEnabled: false,
           myLocationButtonEnabled: false,
@@ -208,13 +302,15 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: () async {
             final updated = await Navigator.push<bool>(
               context,
               MaterialPageRoute(
-                builder: (context) => LaporanEditPage(laporan: laporan!), // Pastikan import
+                builder: (context) =>
+                    LaporanEditPage(laporan: laporan!), // Pastikan import
               ),
             );
 
@@ -230,7 +326,8 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: () async {
             final confirm = await showDialog<bool>(
@@ -253,7 +350,8 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
 
             if (confirm == true) {
               try {
-                await supabase.from('laporan')
+                await supabase
+                    .from('laporan')
                     .delete()
                     .eq('id', laporan?['id']);
                 Navigator.pop(context, true);
@@ -270,7 +368,6 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
       ],
     );
   }
-
 
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
