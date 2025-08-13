@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:applaporwarga/views/auth/register_page.dart';
 import 'package:applaporwarga/views/user/home_user_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:applaporwarga/views/admin/admin_home/exp_admin_home.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -70,10 +71,23 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeUserPage()),
-      );
+      final profile = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', res.user!.id)
+          .maybeSingle();
+
+      if (profile != null && profile['role'] == 'admin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminHomePage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeUserPage()),
+        );
+      }
 
     } on AuthException catch (e) {
       String message;

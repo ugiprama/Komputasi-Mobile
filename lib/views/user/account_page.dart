@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:applaporwarga/widgets/bottom_nav.dart';
 import 'package:applaporwarga/views/laporan/laporan_list_page.dart';
-import 'package:applaporwarga/views/user/widgets/edit_profil_page.dart'; // Import untuk halaman edit profil
-import 'package:applaporwarga/views/user/widgets/help_page.dart'; // Import untuk halaman bantuan
-import 'package:applaporwarga/views/user/widgets/setting_page.dart'; // Import untuk halaman pengaturan
+import 'package:applaporwarga/views/user/widgets/edit_profil_page.dart';
+import 'package:applaporwarga/views/user/widgets/help_page.dart'; 
+import 'package:applaporwarga/views/user/widgets/setting_page.dart'; 
 
 // Model untuk data user
 class UserProfile {
@@ -15,6 +15,7 @@ class UserProfile {
   final String address;
   final String profileImageUrl;
   final DateTime createdAt;
+  final String kodePos;
 
   UserProfile({
     required this.id,
@@ -24,6 +25,7 @@ class UserProfile {
     required this.address,
     required this.profileImageUrl,
     required this.createdAt,
+    required this.kodePos,
   });
 
   // Factory constructor untuk membuat UserProfile dari data Supabase
@@ -32,8 +34,9 @@ class UserProfile {
       id: json['id'] ?? '',
       name: json['name'] ?? 'User',
       email: json['email'] ?? '',
-      phone: json['phone'] ?? '',
+      phone: json['no_hp'] ?? '',
       address: json['address'] ?? '',
+      kodePos: json['kode_pos'] ?? '',
       profileImageUrl: json['profile_image_url'] ?? '',
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
     );
@@ -50,6 +53,7 @@ class AccountPage extends StatefulWidget {
 class _AccountPageState extends State<AccountPage> {
   UserProfile? userProfile;
   bool isLoading = true;
+  bool isLoggingOut = false;
 
   @override
   void initState() {
@@ -72,7 +76,6 @@ class _AccountPageState extends State<AccountPage> {
           isLoading = false;
         });
       } else {
-        // Jika user tidak login, arahkan ke halaman login
         if (mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
         }
@@ -89,6 +92,25 @@ class _AccountPageState extends State<AccountPage> {
       }
     }
   }
+
+  void _logout() async {
+    setState(() => isLoggingOut = true);
+
+    try {
+      await Supabase.instance.client.auth.signOut();
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saat logout: $e')),
+        );
+        setState(() => isLoggingOut = false);
+      }
+    }
+  }
+
 
   // Method untuk refresh profile setelah edit
   Future<void> _refreshProfile() async {
@@ -135,15 +157,6 @@ class _AccountPageState extends State<AccountPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 172, 172, 172),
-      appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 151, 151, 151),
-        title: const Text('AKUN', style: TextStyle(color: Colors.white)),
-        centerTitle: false,
-        elevation: 0,
-        // Hapus tombol edit dari AppBar
-        automaticallyImplyLeading: false,
-      ),
       body: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -234,6 +247,7 @@ class _AccountPageState extends State<AccountPage> {
                                   ),
                                   const SizedBox(height: 15),
                                   _buildInfoRow(Icons.person, 'Nama Lengkap', userProfile!.name),
+                                  _buildInfoRow(Icons.location_city, 'Kode Pos', userProfile!.kodePos),
                                   _buildInfoRow(Icons.email, 'Email', userProfile!.email),
                                   _buildInfoRow(Icons.phone, 'Nomor Telepon', userProfile!.phone),
                                   _buildInfoRow(Icons.location_on, 'Alamat', userProfile!.address),
@@ -337,7 +351,7 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                   ),
       ),
-      bottomNavigationBar: const UserBottomNavBar(currentIndex: 4),
+      bottomNavigationBar: const UserBottomNavBar(currentIndex: 3),
     );
   }
 
@@ -459,55 +473,29 @@ class _AccountPageState extends State<AccountPage> {
           ),
           content: const Text('Apakah Anda yakin ingin keluar dari akun ini?'),
           actions: [
-            TextButton(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Batal'),
+              child: const Text('Batal',
+              style: TextStyle(color: Colors.white)),
             ),
             ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                
-                // Show loading
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-                
-                try {
-                  // Logout dari Supabase
-                  await Supabase.instance.client.auth.signOut();
-                  
-                  if (mounted) {
-                    // Close loading dialog
-                    Navigator.of(context).pop();
-                    
-                    // Arahkan ke login page setelah logout
-                    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-                  }
-                } catch (error) {
-                  if (mounted) {
-                    // Close loading dialog
-                    Navigator.of(context).pop();
-                    
-                    // Show error
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error saat logout: $error'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
               ),
-              child: const Text('Keluar'),
-            ),
+              onPressed: isLoggingOut ? null : _logout,
+              child: isLoggingOut
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Keluar',
+                  style: TextStyle(color: Colors.white),
+                  ),
+            )
           ],
         );
       },

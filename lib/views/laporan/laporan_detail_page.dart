@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'imp_laporan.dart'; // pastikan ada import LaporanEditPage
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:applaporwarga/views/laporan/laporan_edit_page.dart';
 
 class LaporanDetailPage extends StatefulWidget {
   final String laporanId;
-
   const LaporanDetailPage({super.key, required this.laporanId});
 
   @override
@@ -14,11 +15,10 @@ class LaporanDetailPage extends StatefulWidget {
 
 class _LaporanDetailPageState extends State<LaporanDetailPage> {
   final supabase = Supabase.instance.client;
-
-  Map<String, dynamic>? _laporanDetail;
-  String _namaPelapor = '-';
-  bool _loading = true;
-  bool _dataUpdated = false;
+  Map<String, dynamic>? laporan;
+  String namaPelapor = '-';
+  bool loading = true;
+  bool dataUpdated = false;
 
   @override
   void initState() {
@@ -27,55 +27,35 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _loading = true;
-    });
-
+    setState(() => loading = true);
     try {
-      // Fetch laporan detail
-      final laporan = await supabase
+      final data = await supabase
           .from('laporan')
           .select()
           .eq('id', widget.laporanId)
           .single();
 
-      if (laporan != null) {
-        setState(() {
-          _laporanDetail = laporan;
-        });
+      laporan = data;
 
-        // Fetch nama pelapor berdasarkan user_id laporan
-        final userId = laporan['user_id'];
-        if (userId != null) {
-          final profile = await supabase
-              .from('profiles')
-              .select('name')
-              .eq('id', userId)
-              .maybeSingle();
+      if (data['user_id'] != null) {
+        final profile = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', data['user_id'])
+            .maybeSingle();
 
-          setState(() {
-            _namaPelapor = profile?['name'] ?? '-';
-          });
-        } else {
-          setState(() {
-            _namaPelapor = '-';
-          });
-        }
+        namaPelapor = profile?['name'] ?? '-';
       }
     } catch (e) {
-      print('Error fetching laporan detail or profile: $e');
-      // Kamu bisa tambah error handling dan tampilkan pesan error di UI jika perlu
-    } finally {
-      setState(() {
-        _loading = false;
-      });
+      debugPrint("Error: $e");
     }
+    setState(() => loading = false);
   }
 
-  String formatDateTime(String? isoDate) {
-    if (isoDate == null) return '-';
+  String formatDateTime(String? iso) {
+    if (iso == null) return '-';
     try {
-      final dt = DateTime.parse(isoDate);
+      final dt = DateTime.parse(iso);
       return DateFormat('dd MMM yyyy, HH:mm').format(dt);
     } catch (_) {
       return '-';
@@ -84,272 +64,220 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
+    if (loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
-
-    if (_laporanDetail == null) {
+    if (laporan == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Detail Laporan')),
         body: const Center(child: Text('Laporan tidak ditemukan')),
       );
     }
 
-    final laporan = _laporanDetail!;
-    final status = laporan['status'] ?? '-';
-    final judul = laporan['judul'] ?? '-';
-    final kategori = laporan['kategori'] ?? '-';
-    final deskripsi = laporan['deskripsi'] ?? '-';
-    final alamatManual = laporan['alamat_manual'];
-    final lat = laporan['koordinat_lat'];
-    final lng = laporan['koordinat_lng'];
-    final waktuKejadian = laporan['waktu_kejadian'];
+    final fotoUrls = List<String>.from(laporan?['foto_urls'] ?? []);
+    final lat = laporan?['koordinat_lat'] as double?;
+    final lng = laporan?['koordinat_lng'] as double?;
 
-    final fotoUrls = laporan['foto_urls'] as List<dynamic>? ?? [];
-
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.pop(context, _dataUpdated);
-        return false;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Detail Laporan'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context, _dataUpdated),
-          ),
-          backgroundColor: const Color.fromRGBO(104, 159, 153, 1),
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      judul,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _statusColor(status),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      status,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              Text(
-                'Pelapor: $_namaPelapor',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              _infoRow('Kategori Masalah:', kategori),
-              const SizedBox(height: 8),
-              _infoRow('Deskripsi Masalah:', deskripsi),
-              const SizedBox(height: 8),
-
-              _infoRow(
-                'Lokasi Kejadian:',
-                alamatManual != null && alamatManual.toString().isNotEmpty
-                    ? alamatManual
-                    : (lat != null && lng != null
-                        ? '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'
-                        : '-'),
-              ),
-              const SizedBox(height: 8),
-
-              _infoRow(
-                'Tanggal & Waktu:',
-                waktuKejadian != null ? formatDateTime(waktuKejadian) : '-',
-              ),
-              const SizedBox(height: 16),
-
-              const Text(
-                'Foto Bukti',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-
-              SizedBox(
-                height: 120,
-                child: fotoUrls.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Tidak ada foto bukti',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      )
-                    : ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: fotoUrls.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 12),
-                        itemBuilder: (context, index) {
-                          final fotoUrl = fotoUrls[index].toString();
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              fotoUrl,
-                              width: 140,
-                              height: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 140,
-                                height: 120,
-                                color: Colors.grey[300],
-                                child: const Icon(
-                                  Icons.broken_image,
-                                  size: 48,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              const SizedBox(height: 30),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final updated = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => LaporanEditPage(laporan: laporan),
-                        ),
-                      );
-
-                      if (updated == true) {
-                        _dataUpdated = true;
-                        await _loadData();
-                      }
-                    },
-                    icon: const Icon(Icons.edit, color: Colors.white),
-                    label: const Text(
-                      'Edit Laporan',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      textStyle: const TextStyle(fontSize: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Konfirmasi Hapus'),
-                          content: const Text('Yakin ingin menghapus laporan ini?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Batal'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Hapus'),
-                            ),
-                          ],
-                        ),
-                      );
-
-                      if (confirm == true) {
-                        final response = await supabase
-                            .from('laporan')
-                            .delete()
-                            .eq('id', laporan['id']);
-
-                        if (response.error == null) {
-                          Navigator.pop(context, true);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Gagal hapus laporan: ${response.error!.message}')),
-                          );
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.delete, color: Colors.white),
-                    label: const Text(
-                      'Hapus Laporan',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      textStyle: const TextStyle(fontSize: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Detail Laporan'),
+        backgroundColor: const Color(0xFF689F99),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 16),
+            if (fotoUrls.isNotEmpty) _buildImageCarousel(fotoUrls),
+            const SizedBox(height: 16),
+            _buildInfoCard(),
+            const SizedBox(height: 16),
+            if (lat != null && lng != null) _buildMapPreview(lat, lng),
+            const SizedBox(height: 24),
+            _buildActionButtons(),
+          ],
         ),
       ),
     );
   }
 
-  Widget _infoRow(String label, String value) {
+  Widget _buildHeader() {
+    final status = laporan?['status'] ?? '-';
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 140,
-          child: Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-          ),
-        ),
         Expanded(
           child: Text(
-            value,
-            style: const TextStyle(color: Colors.black87),
+            laporan?['judul'] ?? '-',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
-        )
+        ),
+        Chip(
+          avatar: const Icon(Icons.info, color: Colors.white, size: 18),
+          label: Text(
+            status,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: _statusColor(status),
+        ),
       ],
     );
   }
+
+  Widget _buildImageCarousel(List<String> urls) {
+    return CarouselSlider(
+      options: CarouselOptions(
+        height: 200,
+        enlargeCenterPage: true,
+        enableInfiniteScroll: false,
+      ),
+      items: urls.map((url) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            url,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            errorBuilder: (_, __, ___) => Container(
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _infoTile(Icons.person, "Pelapor", namaPelapor),
+            _infoTile(Icons.category, "Kategori", laporan?['kategori'] ?? '-'),
+            _infoTile(Icons.description, "Deskripsi", laporan?['deskripsi'] ?? '-'),
+            _infoTile(Icons.location_on, "Lokasi", 
+              laporan?['alamat_manual'] ?? '-'),
+            _infoTile(Icons.calendar_today, "Tanggal & Waktu",
+              formatDateTime(laporan?['waktu_kejadian'])),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapPreview(double lat, double lng) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 200,
+        child: GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: LatLng(lat, lng),
+            zoom: 15,
+          ),
+          markers: {
+            Marker(markerId: const MarkerId('laporan'), position: LatLng(lat, lng)),
+          },
+          zoomControlsEnabled: false,
+          myLocationButtonEnabled: false,
+        ),
+      ),
+    );
+  }
+
+  Widget _infoTile(IconData icon, String label, String value) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF689F99)),
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text(value),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () async {
+            final updated = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(
+                builder: (context) => LaporanEditPage(laporan: laporan!), // Pastikan import
+              ),
+            );
+
+            if (updated == true) {
+              setState(() => dataUpdated = true);
+              await _loadData();
+            }
+          },
+          icon: const Icon(Icons.edit, color: Colors.white),
+          label: const Text("Edit", style: TextStyle(color: Colors.white)),
+        ),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () async {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text("Konfirmasi Hapus"),
+                content: const Text("Yakin ingin menghapus laporan ini?"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text("Batal"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text("Hapus"),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirm == true) {
+              try {
+                await supabase.from('laporan')
+                    .delete()
+                    .eq('id', laporan?['id']);
+                Navigator.pop(context, true);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Gagal hapus laporan: $e')),
+                );
+              }
+            }
+          },
+          icon: const Icon(Icons.delete, color: Colors.white),
+          label: const Text("Hapus", style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    );
+  }
+
 
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
       case 'proses':
         return Colors.red;
       case 'pengerjaan':
-        return Colors.amber;
+        return Colors.orange;
       case 'selesai':
         return Colors.green;
       default:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 
 class EditProfilePage extends StatefulWidget {
   final Map<String, dynamic>? initialData;
@@ -27,6 +28,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   File? _imageFile;
   String? _currentImageUrl;
   final ImagePicker _picker = ImagePicker();
+  String? _selectedKodePos;
 
   @override
   void initState() {
@@ -77,6 +79,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
     }
   }
+  
+  final Map<String, String> _kodePosList = {
+    'Sinduadi': '55284',
+    'Sendangadi': '55285',
+    'Tlogoadi': '55286',
+    'Tirtoadi': '55287',
+  };
 
   void _populateFields(Map<String, dynamic> data) {
     _nameController.text = data['name'] ?? '';
@@ -84,6 +93,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneController.text = data['phone'] ?? '';
     _addressController.text = data['address'] ?? '';
     _currentImageUrl = data['profile_image_url'] ?? '';
+
+    if (data['kode_pos'] != null && data['kode_pos'].toString().isNotEmpty) {
+      final found = _kodePosList.entries.firstWhere(
+        (e) => e.value == data['kode_pos'],
+        orElse: () => MapEntry('', ''),
+      );
+      if (found.key.isNotEmpty) {
+        _selectedKodePos = '${found.key}|${found.value}';
+      }
+    }
   }
 
   Future<void> _pickImage() async {
@@ -172,6 +191,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'phone': _phoneController.text.trim(),
         'address': _addressController.text.trim(),
         'updated_at': DateTime.now().toIso8601String(),
+        'kode_pos': _selectedKodePos?.split('|')[1] ?? '',
       };
 
       if (imageUrl != null) {
@@ -295,19 +315,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         backgroundColor: const Color.fromRGBO(104, 159, 153, 1),
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          if (!_isLoading && !_isSaving)
-            TextButton(
-              onPressed: _saveProfile,
-              child: const Text(
-                'SIMPAN',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -472,6 +479,51 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 }
                                 return null;
                               },
+                            ),
+                            const SizedBox(height: 16.0),
+                            Container(
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: Colors.grey),
+                                ),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton2<String>(
+                                  isExpanded: true,
+                                  hint: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      'Pilih Desa',
+                                      style: TextStyle(color: Colors.grey[600]),
+                                    ),
+                                  ),
+                                  items: _kodePosList.entries.map((entry) {
+                                    return DropdownMenuItem<String>(
+                                      value: '${entry.key}|${entry.value}',
+                                      child: Text('${entry.key} (${entry.value})'),
+                                    );
+                                  }).toList(),
+                                  value: _selectedKodePos,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _selectedKodePos = val;
+                                    });
+                                  },
+                                  buttonStyleData: const ButtonStyleData(
+                                    height: 48,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  dropdownStyleData: DropdownStyleData(
+                                    maxHeight: 200,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      color: Colors.white,
+                                      border: Border.all(color: Colors.grey),
+                                    ),
+                                  ),
+                                  menuItemStyleData: const MenuItemStyleData(height: 40),
+                                ),
+                              ),
                             ),
                           ],
                         ),

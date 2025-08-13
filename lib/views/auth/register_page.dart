@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -14,6 +15,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  String? _selectedKodePos;
 
   final supabase = Supabase.instance.client;
 
@@ -23,14 +26,23 @@ class _RegisterPageState extends State<RegisterPage> {
     _passwordController.dispose();
     _confirmController.dispose();
     _nameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
+
+  final Map<String, String> _kodePosList = {
+    'Sinduadi': '55284',
+    'Sendangadi': '55285',
+    'Tlogoadi': '55286',
+    'Tirtoadi': '55287',
+  };
 
   Future<void> _register() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final confirm = _confirmController.text.trim();
     final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
 
     if (password != confirm) {
       _showMessage("Password tidak cocok");
@@ -46,10 +58,11 @@ class _RegisterPageState extends State<RegisterPage> {
       final id = res.user?.id;
 
       if (id != null) {
-        await supabase.from('profiles').insert({
-          'id': id,
+        await supabase.from('profiles').update({
           'name': name,
-        });
+          'no_hp': phone,
+          'kode_pos': _selectedKodePos,
+        }).eq('id', id);
       }
 
       _showSuccessDialog("Berhasil mendaftar. Silakan verifikasi email anda.");
@@ -59,8 +72,6 @@ class _RegisterPageState extends State<RegisterPage> {
       _showMessage("Terjadi kesalahan: $e");
     }
   }
-
-
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -166,6 +177,60 @@ class _RegisterPageState extends State<RegisterPage> {
                           decoration: const InputDecoration(
                             labelText: 'Email',
                             border: UnderlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16.0),
+                        TextFormField(
+                          controller: _phoneController, // ✅ input nomor HP
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Nomor HP',
+                            border: UnderlineInputBorder(),
+                          ),
+                        ),
+                        SizedBox(height: 16.0),
+                        Container(
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey),
+                            ),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton2<String>(
+                              isExpanded: true,
+                              hint: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Pilih Desa',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                              ),
+                              items: _kodePosList.entries.map((entry) {
+                                return DropdownMenuItem<String>(
+                                  value: '${entry.key}|${entry.value}',
+                                  child: Text('${entry.key} (${entry.value})'),
+                                );
+                              }).toList(),
+                              value: _selectedKodePos,
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedKodePos = val;
+                                });
+                              },
+                              buttonStyleData: const ButtonStyleData(
+                                height: 48, // samakan tinggi dengan TextFormField
+                                padding: EdgeInsets.zero,
+                              ),
+                              dropdownStyleData: DropdownStyleData(
+                                maxHeight: 200,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.white,
+                                  border: Border.all(color: Colors.grey),
+                                ),
+                              ),
+                              menuItemStyleData: const MenuItemStyleData(height: 40),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16.0),

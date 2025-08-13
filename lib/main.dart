@@ -5,6 +5,7 @@ import 'package:applaporwarga/views/auth/login_page.dart';
 import 'package:applaporwarga/views/user/account_page.dart';
 import 'package:applaporwarga/services/exp_services.dart';
 import 'package:applaporwarga/views/user/home_user_page.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Lapor Warga',
       debugShowCheckedModeBanner: false,
+      supportedLocales: const [
+        Locale('id', 'ID'), // Bahasa Indonesia
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -378,5 +387,4 @@ class _SplashScreenPageState extends State<SplashScreenPage>
   }
 }
 
-// Helper untuk mengakses Supabase client dengan mudah
 final supabase = Supabase.instance.client;
